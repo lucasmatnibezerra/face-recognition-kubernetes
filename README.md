@@ -1,35 +1,106 @@
-# face-detection-tensorjs-ml
-Face landmark detection TensorJS with Integrated WASM & comparison with Webgl, CPU
+# Face Recognition Kubernetes Deployment
 
-### Open in browser
+This repository provides an example of how to deploy a face recognition application using TensorFlow.js in a Kubernetes cluster. The application is served by an Nginx container that hosts the web interface, allowing users to interact with the face recognition system.
 
-[Clik & Visit Link](https://storage.googleapis.com/cnd-wasm-tensorjs/index.html)
+## Requirements
 
-### Quick run http-server
+- [Docker](https://docs.docker.com/get-docker/)
+- [Kubernetes](https://kubernetes.io/docs/setup/) (recommended to use [kind](https://kind.sigs.k8s.io/docs/user/quick-start/) for local environment)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
-Install `http-server`
+## Setup Instructions
 
+### 1. Clone this Repository
+
+First, clone this repository to your local machine:
+
+```sh
+git clone https://github.com/lucasmatnibezerra/face-recognition-kubernetes.git
+cd face-recognition-kubernetes
 ```
-npm install --global http-server
+### 2. Verify the Docker Image
+We are using a public Docker image that has already been built and is available on Docker Hub:
+
+```sh
+lucasmatni/face-detection-tensorjs:latest
 ```
 
-Run `http-server` & Open browser `localhost:8080`
+### 3. Create the Deployment in Kubernetes
+You will need to create a deployment in Kubernetes that uses the Docker image. The deployment described below creates 3 replicas of the application to ensure high availability.
 
-### DIY General Quick Demo
-ARM 
+Create a file named deployment.yaml with the following content:
+
+```yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: face-detection-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: face-detection
+  template:
+    metadata:
+      labels:
+        app: face-detection
+    spec:
+      containers:
+      - name: face-detection-container
+        image: lucasmatni/face-detection-tensorjs:latest
+        ports:
+        - containerPort: 80
+``` 
+
+### 4. Create the Service in Kubernetes
+Now, create a service that exposes the application on port 80 and uses NodePort to allow external access.
+
+Create a file named service.yaml with the following content:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: face-detection-service
+  namespace: default
+spec:
+  selector:
+    app: face-detection
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 32475
+  type: NodePort
 ```
-docker run -p 1234:80 harshmanvar/face-detection-tensorjs:compare-wasm-webgl-cpu
+
+### 5. Apply the Configuration Files
+Apply the configuration files to your Kubernetes cluster:
+
+```sh
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
 ```
-AMD
+
+### 6. Access the Web Interface
+Using kubectl port-forward
+If you are using a local environment like kind, you can access the application using kubectl port-forward:
+
+```sh
+kubectl port-forward pod/<pod-name> 8080:80 -n default
 ```
-docker run -p 1234:80 harshmanvar/face-detection-tensorjs:compare-wasm-webgl-cpu-amd
+Then, open your browser and go to:
+
+```sh
+http://localhost:8080
 ```
-Open the URL in browser
 
-`http://localhost:1234`
+### 6. Logs and Debugging
+If you encounter any issues, you can check the logs of the pods:
 
-<img width="832" alt="Screenshot 2023-08-02 at 1 23 45 AM" src="https://github.com/harsh4870/face-detection-tensorjs/assets/15871000/a32b6ad6-2a69-4119-9506-50f2dd1a0198">
-
-#### Node DIY : https://www.npmjs.com/package/@tensorflow/tfjs-backend-wasm
-
-#### Article for ref : [ML TensorflowJS Official Docker Article](https://www.docker.com/blog/accelerating-machine-learning-with-tensorflow-js-using-pretrained-models-and-docker/)
+```sh
+Copiar código
+kubectl logs <pod-name> -n default
+```
+This will help diagnose any issues that may arise.
